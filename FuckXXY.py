@@ -26,7 +26,9 @@ sign_gps = [] # 签到坐标（注意小数点取后6位）
 # 例如[0.123456,0.123456]，先经度后纬度，可以去 https://lbs.amap.com/console/show/picker 高德取坐标，直接把结果复制到[]里即可
 # 每家坐标拾取器标准不同，本脚本采用XY轴坐标格式。例如北京[116.000000,40.000000]
 
-no_wait = 0 # 是否不等待直接完成（将取消获取真实位置信息功能），0：等待，1：不等待
+comment = "" # 签到说明（如需换行请使用\\n，如需输入"\"斜杠请使用"\\"，以上仅为猜测，作者没用过）
+
+no_wait = 0 # 是否不等待直接完成（将取消获取真实位置信息功能，实训云会报告“位置区域”），0：等待，1：不等待
 
 system = "4.4.4" # 模拟Android版本号
 model = "FuckXixunyun" # 模拟机型
@@ -77,7 +79,7 @@ if no_wait==0:
     for i in range(1,100):
         try:
             # 获取位置信息
-            req = request.Request("https://restapi.amap.com/v3/geocode/regeo?key=8325164e247e15eea68b59e89200988b&location=116.985693,36.708199&radius=2800")  # GET方法
+            req = request.Request("https://restapi.amap.com/v3/geocode/regeo?key=8325164e247e15eea68b59e89200988b&location="+longitude+","+latitude+"&radius=2800")  # GET方法
             regeopage = request.urlopen(req, timeout=10).read()
             regeopage = regeopage.decode('utf-8')
             regeopage = json.loads(regeopage)
@@ -96,6 +98,7 @@ if no_wait==0:
         time.sleep(1)
     sys.stdout.write('\n')
 else:
+    regeopage = {"status":"1","info":"OK","infocode":"10000","regeocode":{"formatted_address":[],"addressComponent":{"country":[],"province":[],"city":[],"citycode":[],"district":[],"adcode":[],"township":[],"towncode":[],"streetNumber":{"street":[],"number":[],"location":"0,0","direction":[],"distance":[]}}}}
     print("你将会用账号",account,"在经度：",longitude,"，纬度"+latitude+"以",remark_name,"进行签到。(｀・ω・´)")
 print("我们来登录吧！")
 
@@ -152,8 +155,8 @@ if accountpage["code"]==20000: # 成功
         except Exception as e:
             print("出现异常-->"+str(e))
 
-    print("登录状态码：",signhomepage["code"])
-    print("登录状态：",signhomepage["message"])
+    print("进入签到页面状态码：",signhomepage["code"])
+    print("进入签到页面状态：",signhomepage["message"])
     print("服务器返回响应时间：",signhomepage["run_execute_time"])
     if signhomepage["code"]==20000: # 成功
         # print(signhomepage["data"])
@@ -170,9 +173,8 @@ if accountpage["code"]==20000: # 成功
         if(isset('remark')==0):
             print("没有找到类型数据，请确认是否配置正确（可以参考输出日志中的“服务器返回签到类型数据”部分）")
             exit()
-        signactdata = {"change_sign_resource":"0","longitude":longitude,"latitude":latitude,"comment":"","remark":remark,"address":"","address_name":""}
-        # 下面for循环里其实还需要重新组合
-        print("开始组合数据包：",signactdata)
+        signactdata_origin = {"change_sign_resource":"0","longitude":longitude,"latitude":latitude,"comment":"","remark":remark,"address":(regeopage["regeocode"]["addressComponent"]["province"]+regeopage["regeocode"]["addressComponent"]["city"]+regeopage["regeocode"]["addressComponent"]["district"]),"address_name":regeopage["regeocode"]["formatted_address"]}
+        print("开始组合数据包：",signactdata_origin)
         if no_wait==0:
             print("数据包没错哦~（其实只是让开发者确认啦）")
             for i in range(6):
@@ -184,9 +186,9 @@ if accountpage["code"]==20000: # 成功
         print("Biu~那么我们就开始吧！")
         for i in range(1,100):
             try:
-                # 登录
+                # 签到
                 signacturl = "https://api.xixunyun.com/signin?token="+accountpage["data"]["token"]+"&from=app&version="+app_version+"&platform=android&entrance_year=0&graduate_year=0"
-                signactdata = {"change_sign_resource":"0","longitude":longitude,"latitude":latitude,"comment":"","remark":remark,"address":"","address_name":""}
+                signactdata = signactdata_origin
                 signactdata = parse.urlencode(signactdata).encode('utf-8')
                 req = request.Request(signacturl, headers=headers, data=signactdata)  #POST方法
                 signactpage = request.urlopen(req, timeout=10).read()
@@ -209,8 +211,8 @@ if accountpage["code"]==20000: # 成功
             except Exception as e:
                 print("出现异常-->"+str(e))
         # print("原始信息：",signactpage)
-        print("登录状态码：",signactpage["code"])
-        print("登录状态：",signactpage["message"])
+        print("签到状态码：",signactpage["code"])
+        print("签到状态：",signactpage["message"])
         print("服务器返回响应时间：",signactpage["run_execute_time"])
         if signactpage["code"]==20000: # 成功
             print("\r\n\r\n",signactpage["data"]["message_string"])
